@@ -1,0 +1,97 @@
+<?php 
+include 'sesstion.php';
+include "header.php";
+include "sidebar.php";
+include 'connection.php'; // Ensure DB connection is included
+
+$admin_id = $_GET['updateid'] ?? null;
+$msg = "";
+
+if (!$admin_id) {
+    echo "Admin ID missing.";
+    exit;
+}
+
+$query = mysqli_query($conn, "SELECT * FROM type_users WHERE type_users = '$admin_id'");
+$row = mysqli_fetch_array($query);
+
+if (isset($_POST['update'])) {
+    $name = $_POST["name"];
+    $email = $_POST["email"];
+    $mobile = $_POST["mobile"];
+
+    // Handle image upload
+    $newImage = $row['photo']; // Use current photo as default
+    if (!empty($_FILES["image"]["name"])) {
+        $filename = rand(1000, 9999) . "_" . basename($_FILES["image"]["name"]);
+        $uploadPath = "uploads/users/" . $filename;
+        move_uploaded_file($_FILES["image"]["tmp_name"], $uploadPath);
+        $newImage = $filename;
+    }
+
+    // Check for duplicate email
+    $check = mysqli_query($conn, "SELECT * FROM type_users WHERE email='$email' AND type_users!='$admin_id'");
+    if (mysqli_num_rows($check) > 0) {
+        $msg = "Email already exists!";
+    } else {
+        $update = mysqli_query($conn, "UPDATE type_users SET name='$name', email='$email', mobile='$mobile', photo='$newImage' WHERE type_users='$admin_id'");
+        if ($update) {
+            $_SESSION['name'] = $name;
+            $_SESSION['email'] = $email;
+            $_SESSION['mobile'] = $mobile;
+            $_SESSION['photo'] = $newImage;
+            header("Location: profile.php");
+            exit;
+        } else {
+            $msg = "Update failed!";
+        }
+    }
+}
+?>
+
+<!-- PAGE CONTENT -->
+<div class="content-body">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-xl-6 m-auto">
+                <div class="card">
+                    <div class="card-header">
+                        <h4 class="card-title">Edit Admin Profile</h4>
+                    </div>
+                    <div class="card-body">
+                        <?php if (!empty($msg)): ?>
+                            <div class="alert alert-info"><?php echo $msg; ?></div>
+                        <?php endif; ?>
+
+                        <form method="post" enctype="multipart/form-data">
+                            <div class="mb-3 text-center">
+                                <img src="uploads/users/<?php echo $row['photo'] ?: 'avatar.png'; ?>" width="100" class="rounded-circle mb-2" alt="Profile Photo">
+                                <input type="file" name="image" class="form-control">
+                            </div>
+
+                            <div class="mb-3">
+                                <label><strong>Name</strong></label>
+                                <input type="text" name="name" class="form-control" value="<?php echo htmlspecialchars($row['name']); ?>" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label><strong>Email</strong></label>
+                                <input type="email" name="email" class="form-control" value="<?php echo htmlspecialchars($row['email']); ?>" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label><strong>Mobile</strong></label>
+                                <input type="text" name="mobile" class="form-control" value="<?php echo htmlspecialchars($row['mobile']); ?>" required>
+                            </div>
+
+                            <button href="profile.php" type="submit" name="update" class="btn btn-primary">Update Profile</button>
+                            <a href="profile.php" class="btn btn-secondary">Cancel</a>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<?php include("footer.php"); ?>
